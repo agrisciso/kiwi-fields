@@ -1,0 +1,27 @@
+{
+  "short_name": "Arta Gold",
+  "name": "Arta Gold \u0391\u03c1\u03c7\u03b5\u03b9\u03bf \u03a0\u03b1\u03c1\u03b1\u03b3\u03c9\u03b3\u03c9\u03bd",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-180x180.png",
+      "type": "image/png",
+      "sizes": "180x180"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D2818",
+  "theme_color": "#0D2818"
+}
