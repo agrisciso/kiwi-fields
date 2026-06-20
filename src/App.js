@@ -11,6 +11,51 @@ const C = {
 // Thresholds: clay/heavy soil (conservative)
 const THR = { P_low:11, P_high:21, K_low:150, K_high:300, Ca_low:3000, Ca_high:6000, Mg_low:150, Mg_high:300 };
 
+function computeNutrition(p) {
+  const { ha, yield: yld_ha, soil, water, plantYear } = p;
+  if (!ha) return null;
+  const irrig = ha * 4000;
+  const r3 = x => Math.round(x * 1000) / 1000;
+  const age = plantYear ? new Date().getFullYear() - plantYear : null;
+
+  // N — yield-independent fixed constants (120 mature / 80 young <4yr)
+  const fertN = Math.max((120 - (water.N || 0) * irrig / 1000) * ha, 0);
+  const fertN_young = Math.max((80 - (water.N || 0) * irrig / 1000) * ha, 0);
+
+  if (!yld_ha) return { N: r3(fertN), N_young: r3(fertN_young), P: null, K: null, Ca: null, Mg: null };
+
+  const { P: P_s, K: K_s, Mg: Mg_s, Ca: Ca_s } = soil;
+
+  // P — water subtracted at all soil levels
+  let fertP = 0;
+  if (P_s <= THR.P_high) fertP = Math.max((yld_ha * 10 / 37.5 - (water.P || 0) * irrig / 1000) * ha, 0);
+
+  // K base — water subtracted at all soil levels
+  let fertK_base = 0;
+  if (K_s <= THR.K_high) fertK_base = Math.max((yld_ha * 74 / 37.5 - (water.K || 0) * irrig / 1000) * ha, 0);
+
+  // Mg base — water subtracted at all soil levels
+  let fertMg_base = 0;
+  if (Mg_s <= THR.Mg_high) fertMg_base = Math.max((yld_ha * 5 / 37.5 - (water.Mg || 0) * irrig / 1000) * ha, 0);
+
+  // Ca
+  let fertCa = 0;
+  if (Ca_s <= THR.Ca_high) {
+    if (Ca_s < THR.Ca_low) {
+      fertCa = (age !== null && age >= 2) ? 60 * ha : Math.max((yld_ha * 11 / 37.5 - (water.Ca || 0) * irrig / 1000) * ha, 0);
+    } else {
+      fertCa = Math.max((yld_ha * 11 / 37.5 - (water.Ca || 0) * irrig / 1000) * ha, 0);
+    }
+  }
+
+  // Competition multipliers
+  let fertK = fertK_base * (Mg_s > THR.Mg_high ? 1.25 : 1);
+  let fertMg = fertMg_base * (K_s > THR.K_high ? 1.25 : 1);
+  if (Ca_s > THR.Ca_high) { fertK *= 1.25; fertMg *= 1.25; }
+
+  return { N: r3(fertN), N_young: r3(fertN_young), P: r3(fertP), K: r3(fertK), Ca: r3(fertCa), Mg: r3(fertMg) };
+}
+
 const PRODUCERS = [
   {
     "id": 1,
@@ -183,32 +228,6 @@ const PRODUCERS = [
     "nutrition": null
   },
   {
-    "id": 13,
-    "name": "Ζαχάρης Χρήστος",
-    "area": "ΑΓΙΟΣ ΣΠΥΡΙΔΩΝΑΣ",
-    "ha": 0.35,
-    "yield": null,
-    "plantYear": 2023,
-    "age": 2,
-    "texture": "medium",
-    "soil": {
-      "pH": 7.6,
-      "OM": 3.81,
-      "P": 31.0,
-      "K": 130,
-      "Mg": 464,
-      "Ca": 3267
-    },
-    "water": {
-      "K": 1.5,
-      "Mg": 14.0,
-      "Ca": 85.0,
-      "N": 12.5,
-      "P": 0.0
-    },
-    "nutrition": null
-  },
-  {
     "id": 15,
     "name": "Ζαχαριά Αναστασία",
     "area": "ΓΑΒΡΙΑ",
@@ -376,39 +395,6 @@ const PRODUCERS = [
       "Mg": 0,
       "N": 5.1,
       "N_young": 30.7
-    }
-  },
-  {
-    "id": 31,
-    "name": "Μillo Tauland",
-    "area": "ΧΑΛΚΙΑΔΕΣ",
-    "ha": 0.4,
-    "yield": 13.0,
-    "plantYear": 2023,
-    "age": 2,
-    "texture": "medium",
-    "soil": {
-      "pH": 7.6,
-      "OM": 2.78,
-      "P": 57.0,
-      "K": 200,
-      "Mg": 200,
-      "Ca": 1750
-    },
-    "water": {
-      "K": 1.2,
-      "Mg": 1.2,
-      "Ca": 53,
-      "N": 5.9,
-      "P": 0.0
-    },
-    "nutrition": {
-      "P": 0,
-      "K": 9.5,
-      "Ca": 11.7,
-      "Mg": 0,
-      "N": 12.9,
-      "N_young": 28.2
     }
   },
   {
@@ -1603,15 +1589,18 @@ function NRow({ element, value, period }) {
 
 function ProducerDetail({ p }) {
   const texLabel=p.texture==="sandy"?"Αμμώδες":p.texture==="clay"?"Αργιλώδες":"Μέσης Σύστασης";
-  const isYoung=p.age&&p.age<4;
-  const N_display=isYoung&&p.nutrition?.N_young?p.nutrition.N_young:p.nutrition?.N;
+  const age = p.plantYear ? new Date().getFullYear() - p.plantYear : p.age;
+  const isYoung = age !== null && age < 3;
+  const nutrition = computeNutrition(p);
+  const N_display = isYoung ? nutrition?.N_young : nutrition?.N;
+  const hasYield = !!p.yield;
 
   return (
     <div>
       <div style={{background:C.primary,borderRadius:14,padding:"14px 16px",marginBottom:12}}>
         <div style={{fontSize:17,fontWeight:800,color:C.cream}}>{p.name}</div>
         <div style={{fontSize:11,color:`${C.cream}88`,marginTop:2}}>
-          {p.area}{p.plantYear?` · Φύτευση ${p.plantYear}`:""}{p.age?` · ${p.age} ετών`:""}
+          {p.area}{p.plantYear?` · Φύτευση ${p.plantYear}`:""}{age!=null?` · ${age} ετών`:""}
           {isYoung&&<span style={{color:"#FFB347",marginLeft:6}}>⚠ Νεαρό</span>}
         </div>
         <div style={{display:"flex",gap:8,marginTop:10}}>
@@ -1655,18 +1644,15 @@ function ProducerDetail({ p }) {
       <div style={{background:C.primary,borderRadius:14,padding:"12px 14px",marginBottom:10}}>
         <div style={{fontSize:10,fontWeight:700,color:C.gold,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:10}}>
           📋 Πρόγραμμα Θρέψης (kg/χωράφι)
-          {isYoung&&<span style={{marginLeft:8,fontSize:9,background:"rgba(255,179,71,0.2)",color:"#FFB347",padding:"2px 6px",borderRadius:6}}>Δόση νεαρού &lt;4 ετών</span>}
+          {isYoung&&<span style={{marginLeft:8,fontSize:9,background:"rgba(255,179,71,0.2)",color:"#FFB347",padding:"2px 6px",borderRadius:6}}>Δόση νεαρού &lt;3 ετών</span>}
         </div>
-        {!p.nutrition
-          ?<div style={{color:`${C.gold}44`,fontSize:12,textAlign:"center",padding:"10px 0"}}>Δεν υπάρχει εκτίμηση παραγωγής</div>
-          :<>
-            <NRow element="N" value={N_display} period={isYoung?"Βάση 25 tn/ha για νεαρά δένδρα":"40% βραδείας έκπτυξη · εβδ. ανθοφορία → Ιούνιο"}/>
-            <NRow element="K" value={p.nutrition.K} period="2-3 εβδομαδιαίες: αρχές Ιουλίου →"/>
-            <NRow element="Ca" value={p.nutrition.Ca} period="7-8 εβδ: ανθοφορία → +50 ημέρες"/>
-            <NRow element="Mg" value={p.nutrition.Mg} period="2-3 εφαρμογές: 15 Ιουνίου → 1 Ιουλίου"/>
-            <NRow element="P" value={p.nutrition.P} period="1-2 εφαρμογές: έκπτυξη → ανθοφορία"/>
-          </>
-        }
+        <NRow element="N" value={N_display} period={isYoung?"Βάση 80 kg N/ha για νεαρά δένδρα":"Στάνταρντ 120 kg N/ha · 40% βραδείας έκπτυξη · εβδ. ανθοφορία → Ιούνιο"}/>
+        {hasYield ? <>
+          <NRow element="K" value={nutrition?.K} period="2-3 εβδομαδιαίες: αρχές Ιουλίου →"/>
+          <NRow element="Ca" value={nutrition?.Ca} period="7-8 εβδ: ανθοφορία → +50 ημέρες"/>
+          <NRow element="Mg" value={nutrition?.Mg} period="2-3 εφαρμογές: 15 Ιουνίου → 1 Ιουλίου"/>
+          <NRow element="P" value={nutrition?.P} period="1-2 εφαρμογές: έκπτυξη → ανθοφορία"/>
+        </> : <div style={{color:`${C.gold}44`,fontSize:11,textAlign:"center",padding:"4px 0"}}>Δεν υπάρχει εκτίμηση παραγωγής (P/K/Mg/Ca)</div>}
       </div>
     </div>
   );
@@ -1734,7 +1720,7 @@ export default function FieldApp() {
                               <div style={{fontWeight:isSel(p)?700:400,color:C.text}}>{p.name}</div>
                               <div style={{fontSize:10,color:C.textMuted}}>{fmt(p.ha)} ha{p.yield?` · ${fmt(p.yield)} tn/ha`:""}</div>
                             </div>
-                            {p.nutrition&&<div style={{fontSize:10,background:`${C.gold}22`,color:C.primary,padding:"2px 6px",borderRadius:8,fontWeight:700,flexShrink:0}}>N={fmt(p.nutrition.N)}</div>}
+                            <div style={{fontSize:10,background:`${C.gold}22`,color:C.primary,padding:"2px 6px",borderRadius:8,fontWeight:700,flexShrink:0}}>N={fmt(computeNutrition(p)?.N)}</div>
                           </div>
                         ))}
                       </div>
