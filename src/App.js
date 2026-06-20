@@ -1535,6 +1535,67 @@ const PRODUCERS = [
   }
 ];
 
+// Sand% & texture from Excel model (col F = Αμμος). clay < 30%, sandy >= 60%, else medium.
+const SAND_DATA = {
+  'Αρχιμανδρίτη Χριστίνα':        { sandPct: 18,   texture: 'clay' },
+  'Βίτσιος Σωτήριος 1':           { sandPct: 12,   texture: 'clay' },
+  'Βίτσιος Σωτήριος 2':           { sandPct: 18,   texture: 'clay' },
+  'Γαλιάνδρα Λαμπρινή':          { sandPct: 18,   texture: 'clay' },
+  'Γκούντας Μιχάλης':             { sandPct: 12,   texture: 'clay' },
+  'Δήμος Κωνσταντίνος':           { sandPct: 22,   texture: 'clay' },
+  'Ζαχαριά Αναστασία':            { sandPct: 16,   texture: 'clay' },
+  'Καλύβας Λάμπρος 1':            { sandPct: 18,   texture: 'clay' },
+  'Καλύβας Λάμπρος 2':            { sandPct: 24,   texture: 'clay' },
+  'Κολιός Αντρέας':               { sandPct: 18,   texture: 'clay' },
+  'Κώτση Βασιλική':               { sandPct: 20,   texture: 'clay' },
+  'Λάμπρου Χρισόστομος':          { sandPct: 20,   texture: 'clay' },
+  'Μαγκλάρας Γεώργιος':           { sandPct: 28,   texture: 'clay' },
+  'Μητσοκάλης Χρισόστομος 1':     { sandPct: 14,   texture: 'clay' },
+  'Μητσοκάλης Χρισόστομος 2':     { sandPct: 14,   texture: 'clay' },
+  'Μίχας Απόστολος':              { sandPct: 28,   texture: 'clay' },
+  'Μίχας Κωνσταντίνος':           { sandPct: 16,   texture: 'clay' },
+  'Μπαλλής Σωτήριος 1':           { sandPct: 19,   texture: 'clay' },
+  'Μπαλλής Σωτήριος 2':           { sandPct: 22,   texture: 'clay' },
+  'Μπαλλής Σωτήριος 3':           { sandPct: 19,   texture: 'clay' },
+  'Μπάρκας Χρήστος':              { sandPct: 16.3, texture: 'clay' },
+  'Μπέκιος Φίλιππος 1':           { sandPct: 12,   texture: 'clay' },
+  'Μπέκιος Φίλιππος 2':           { sandPct: 12,   texture: 'clay' },
+  'Μπέλλου Λαμπρινή':             { sandPct: 20,   texture: 'clay' },
+  'Μπόκου Μάρθα (1)':             { sandPct: 24,   texture: 'clay' },
+  'Μπόκου Μάρθα (2)':             { sandPct: 20,   texture: 'clay' },
+  'Ντέμσιας Θεόδωρος':            { sandPct: 12,   texture: 'clay' },
+  'Ξυλογιάννη Ευανθία':           { sandPct: 20,   texture: 'clay' },
+  'Ξυλογιάννη Μυρσίνη (1)':       { sandPct: 22,   texture: 'clay' },
+  'Ξυλογιάννη Μυρσίνη (2)':       { sandPct: 18,   texture: 'clay' },
+  'Ξυλογιάννης Αναστασιος (1)':   { sandPct: 20,   texture: 'clay' },
+  'Ξυλογιάννης Αναστασιος (2)':   { sandPct: 24,   texture: 'clay' },
+  'Ξυλογιάννης Αναστασιος (3)':   { sandPct: 12,   texture: 'clay' },
+  'Παντιώρα Αμαλία':              { sandPct: 14,   texture: 'clay' },
+  'Παππάς Ιωάννης':               { sandPct: 24,   texture: 'clay' },
+  'Παππάς Λάμπρος':               { sandPct: 28,   texture: 'clay' },
+  'Παππάς Μιχάλης':               { sandPct: 26,   texture: 'clay' },
+  'Σακαγιάννη Ηρώ':               { sandPct: 22,   texture: 'clay' },
+  'Σκούμας Χρήστος':              { sandPct: 14,   texture: 'clay' },
+  'Τζιανούμη Νίκη':               { sandPct: 30,   texture: 'medium' },
+  'Τσάκωνας Άρης (compulife)':    { sandPct: 28,   texture: 'clay' },
+  'Τσάλλος Λάμπρος':              { sandPct: 18,   texture: 'clay' },
+  'Τσάμη Αγλαία':                 { sandPct: 14,   texture: 'clay' },
+  'Τσώλας Διονύσης':              { sandPct: 30,   texture: 'medium' },
+  'Τσώλας Ιωάννης 1':             { sandPct: 20,   texture: 'clay' },
+  'Τσώλας Ιωάννης 2':             { sandPct: 20,   texture: 'clay' },
+  'Τσώρος Γεώργιος':              { sandPct: 32,   texture: 'medium' },
+  'Φερεντίνου Μαρία':             { sandPct: 32,   texture: 'medium' },
+  'Φωτιάδης Ορέστης':             { sandPct: 18,   texture: 'clay' },
+  'Ψιλογιαννόπουλος Χρήστος':     { sandPct: 12,   texture: 'clay' },
+};
+
+// Apply sand/texture to every producer at startup
+const PRODUCERS_INIT = PRODUCERS.map(p => {
+  const sd = SAND_DATA[p.name];
+  if (!sd) return p;
+  return { ...p, sandPct: sd.sandPct, texture: sd.texture };
+});
+
 function fmt(v) {
   if (v===null||v===undefined) return "—";
   if (typeof v==="number") return v%1===0 ? v.toString() : v.toFixed(1);
@@ -1796,7 +1857,7 @@ export default function FieldApp() {
   const [search, setSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [producers, setProducers] = useState(PRODUCERS);
+  const [producers, setProducers] = useState(PRODUCERS_INIT);
   const [syncing, setSyncing] = useState(true);
 
   useEffect(() => {
