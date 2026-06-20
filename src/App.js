@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 const C = {
   primary: "#0D2818", mid: "#1A3A2A", accent: "#2D5A3D",
@@ -26,25 +26,23 @@ function computeNutrition(p) {
 
   const { P: P_s, K: K_s, Mg: Mg_s, Ca: Ca_s } = soil;
 
-  // P — water subtracted at all soil levels
+  // P, K, Mg, Ca — water NOT subtracted (matches artagold Excel model)
   let fertP = 0;
-  if (P_s <= THR.P_high) fertP = Math.max((yld_ha * 10 / 37.5 - (water.P || 0) * irrig / 1000) * ha, 0);
+  if (P_s <= THR.P_high) fertP = Math.max(yld_ha * 10 / 37.5 * ha, 0);
 
-  // K base — water subtracted at all soil levels
   let fertK_base = 0;
-  if (K_s <= THR.K_high) fertK_base = Math.max((yld_ha * 74 / 37.5 - (water.K || 0) * irrig / 1000) * ha, 0);
+  if (K_s <= THR.K_high) fertK_base = Math.max(yld_ha * 74 / 37.5 * ha, 0);
 
-  // Mg base — water subtracted at all soil levels
   let fertMg_base = 0;
-  if (Mg_s <= THR.Mg_high) fertMg_base = Math.max((yld_ha * 5 / 37.5 - (water.Mg || 0) * irrig / 1000) * ha, 0);
+  if (Mg_s <= THR.Mg_high) fertMg_base = Math.max(yld_ha * 5 / 37.5 * ha, 0);
 
   // Ca
   let fertCa = 0;
   if (Ca_s <= THR.Ca_high) {
     if (Ca_s < THR.Ca_low) {
-      fertCa = (age !== null && age >= 2) ? 60 * ha : Math.max((yld_ha * 11 / 37.5 - (water.Ca || 0) * irrig / 1000) * ha, 0);
+      fertCa = (age !== null && age >= 2) ? 60 * ha : Math.max(yld_ha * 11 / 37.5 * ha, 0);
     } else {
-      fertCa = Math.max((yld_ha * 11 / 37.5 - (water.Ca || 0) * irrig / 1000) * ha, 0);
+      fertCa = Math.max(yld_ha * 11 / 37.5 * ha, 0);
     }
   }
 
@@ -1658,20 +1656,76 @@ function ProducerDetail({ p }) {
   );
 }
 
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSPDIpJvd9IsF0hHQd3D17wKa7pUPq2WVlj_7FVMS6op53OKE4HB6SqLKjX9ktmxme7eQdaeHKync9N/pub?gid=1277609134&single=true&output=csv";
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const hdr = lines[0].split(',').map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const vals = line.split(',');
+    const row = {};
+    hdr.forEach((h, i) => { row[h] = (vals[i] || '').trim(); });
+    return row;
+  });
+}
+
+function mergeFromCSV(base, rows) {
+  return base.map(p => {
+    const row = rows.find(r => r['ΟΝΟΜΑΤΕΠΩΝΥΜΟ'] === p.name);
+    if (!row) return p;
+    const ha = parseFloat(row['HA']) || p.ha;
+    const estTn = row['ΕΚΤΙΜΗΣΗ_tn'];
+    const yldRaw = (estTn !== '' && ha) ? parseFloat(estTn) / ha : null;
+    const yld = (yldRaw !== null && !isNaN(yldRaw) && yldRaw > 0) ? yldRaw : null;
+    const pf = k => { const v = parseFloat(row[k]); return isNaN(v) ? null : v; };
+    return {
+      ...p, ha, yield: yld,
+      plantYear: parseInt(row['ΕΤΟΣ_ΦΥΤΕΥΣΗΣ']) || p.plantYear,
+      area: row['ΠΕΡΙΟΧΗ'] || p.area,
+      soil: { ...p.soil,
+        ...(pf('P_OLSEN') !== null ? { P: pf('P_OLSEN') } : {}),
+        ...(pf('K_ΕΔΑΦ') !== null ? { K: pf('K_ΕΔΑΦ') } : {}),
+        ...(pf('MG_ΕΔΑΦ') !== null ? { Mg: pf('MG_ΕΔΑΦ') } : {}),
+        ...(pf('CA_ΕΔΑΦ') !== null ? { Ca: pf('CA_ΕΔΑΦ') } : {}),
+      },
+      water: { ...p.water,
+        ...(pf('K_ΝΕΡΟ') !== null ? { K: pf('K_ΝΕΡΟ') } : {}),
+        ...(pf('MG_ΝΕΡΟ') !== null ? { Mg: pf('MG_ΝΕΡΟ') } : {}),
+        ...(pf('CA_ΝΕΡΟ') !== null ? { Ca: pf('CA_ΝΕΡΟ') } : {}),
+        ...(pf('N_ΝΕΡΟ') !== null ? { N: pf('N_ΝΕΡΟ') } : {}),
+        ...(pf('P_ΝΕΡΟ') !== null ? { P: pf('P_ΝΕΡΟ') } : {}),
+      }
+    };
+  });
+}
+
 export default function FieldApp() {
   const [search, setSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
-  const [selected, setSelected] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [producers, setProducers] = useState(PRODUCERS);
+  const [syncing, setSyncing] = useState(true);
 
-  const areas = useMemo(()=>[...new Set(PRODUCERS.map(p=>p.area).filter(Boolean))].sort(),[]);
-  const filtered = useMemo(()=>{
-    if (!search) return PRODUCERS;
-    const q=search.toLowerCase();
-    return PRODUCERS.filter(p=>p.name.toLowerCase().includes(q)||(p.area||"").toLowerCase().includes(q));
-  },[search]);
+  useEffect(() => {
+    fetch(CSV_URL)
+      .then(r => r.text())
+      .then(csv => {
+        setProducers(prev => mergeFromCSV(prev, parseCSV(csv)));
+        setSyncing(false);
+      })
+      .catch(() => setSyncing(false));
+  }, []);
 
-  function toggleSelect(p) { setSelected(prev=>prev.find(x=>x.id===p.id)?prev.filter(x=>x.id!==p.id):[...prev,p]); }
-  function isSel(p) { return !!selected.find(x=>x.id===p.id); }
+  const areas = useMemo(() => [...new Set(producers.map(p=>p.area).filter(Boolean))].sort(), [producers]);
+  const filtered = useMemo(() => {
+    if (!search) return producers;
+    const q = search.toLowerCase();
+    return producers.filter(p => p.name.toLowerCase().includes(q) || (p.area||"").toLowerCase().includes(q));
+  }, [search, producers]);
+
+  const selected = useMemo(() => selectedIds.map(id => producers.find(p => p.id === id)).filter(Boolean), [selectedIds, producers]);
+  function toggleSelect(p) { setSelectedIds(prev => prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]); }
+  function isSel(p) { return selectedIds.includes(p.id); }
 
   return (
     <div style={{minHeight:"100vh",background:C.primary,fontFamily:"'Inter',-apple-system,sans-serif"}}>
@@ -1679,7 +1733,10 @@ export default function FieldApp() {
       <div style={{background:`linear-gradient(135deg,${C.primary},${C.mid})`,padding:"20px 16px 14px",borderBottom:`2px solid ${C.gold}22`}}>
         <div style={{maxWidth:520,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <ArtaGoldLogo height={34} dark={true}/>
-          <div style={{fontSize:11,color:`${C.gold}77`}}>{PRODUCERS.length} παραγωγοί</div>
+          <div style={{fontSize:11,color:`${C.gold}77`}}>
+            {producers.length} παραγωγοί
+            {syncing && <span style={{marginLeft:6,fontSize:9,color:`${C.gold}55`}}>⟳ sync...</span>}
+          </div>
         </div>
       </div>
 
