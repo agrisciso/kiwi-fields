@@ -1741,35 +1741,43 @@ function parseCSV(text) {
 
 function mergeFromCSV(base, rows) {
   return base.map(p => {
-    const row = rows.find(r => r['ΟΝΟΜΑΤΕΠΩΝΥΜΟ'] === p.name);
+    // name match — trim both sides for safety
+    const row = rows.find(r => (r['ΟΝΟΜΑΤΕΠΩΝΥΜΟ'] || '').trim() === p.name.trim());
     if (!row) return p;
-    const ha = parseFloat(row['HA']) || p.ha;
-    const estTn = row['ΕΚΤΙΜΗΣΗ_tn'];
-    const yldRaw = (estTn !== '' && ha) ? parseFloat(estTn) / ha : null;
-    const yld = (yldRaw !== null && !isNaN(yldRaw) && yldRaw > 0) ? yldRaw : null;
     const pf = k => { const v = parseFloat(row[k]); return isNaN(v) ? null : v; };
-    // Τύπος εδάφους από ποσοστό άμμου (δοκιμάζει πολλά ονόματα στήλης)
-    const sandPct = pf('ΑΜΜΟΣ') ?? pf('ΑΜΜΟΣ_%') ?? pf('SAND_PCT') ?? pf('SAND') ?? pf('%ΑΜΜΟΣ');
+
+    const ha = pf('HA') || p.ha;
+
+    // Yield: column "ΕΚΤΙΜΗΣΗ ΠΑΡΑΓΩΓΗΣ" contains total tn (HA × tn/ha formula)
+    const estTn = pf('ΕΚΤΙΜΗΣΗ ΠΑΡΑΓΩΓΗΣ');
+    const yldRaw = (estTn !== null && ha) ? estTn / ha : null;
+    const yld = (yldRaw !== null && yldRaw > 0) ? yldRaw : null;
+
+    // Sand% — column "Αμμος" (col F in Excel)
+    const sandPct = pf('Αμμος');
     const texture = sandPct !== null
       ? (sandPct >= 60 ? 'sandy' : sandPct < 30 ? 'clay' : 'medium')
       : p.texture;
+
     return {
       ...p, ha, yield: yld, texture,
       sandPct: sandPct !== null ? sandPct : (p.sandPct ?? null),
-      plantYear: parseInt(row['ΕΤΟΣ_ΦΥΤΕΥΣΗΣ']) || p.plantYear,
-      area: row['ΠΕΡΙΟΧΗ'] || p.area,
+      plantYear: parseInt(row['ΕΤΟΣ ΦΥΤΕΥΣΗΣ']) || p.plantYear,
+      area: (row['ΠΕΡΙΟΧΗ'] || '').trim() || p.area,
       soil: { ...p.soil,
-        ...(pf('P_OLSEN') !== null ? { P: pf('P_OLSEN') } : {}),
-        ...(pf('K_ΕΔΑΦ') !== null ? { K: pf('K_ΕΔΑΦ') } : {}),
-        ...(pf('MG_ΕΔΑΦ') !== null ? { Mg: pf('MG_ΕΔΑΦ') } : {}),
-        ...(pf('CA_ΕΔΑΦ') !== null ? { Ca: pf('CA_ΕΔΑΦ') } : {}),
+        ...(pf('pH')          !== null ? { pH: pf('pH') }          : {}),
+        ...(pf('P Olsen')     !== null ? { P:  pf('P Olsen') }     : {}),
+        ...(pf('K')           !== null ? { K:  pf('K') }           : {}),
+        ...(pf('Mg')          !== null ? { Mg: pf('Mg') }          : {}),
+        ...(pf('Ca')          !== null ? { Ca: pf('Ca') }          : {}),
+        ...(pf('Οργ Ουσ.')    !== null ? { OM: pf('Οργ Ουσ.') }   : {}),
       },
       water: { ...p.water,
-        ...(pf('K_ΝΕΡΟ') !== null ? { K: pf('K_ΝΕΡΟ') } : {}),
-        ...(pf('MG_ΝΕΡΟ') !== null ? { Mg: pf('MG_ΝΕΡΟ') } : {}),
-        ...(pf('CA_ΝΕΡΟ') !== null ? { Ca: pf('CA_ΝΕΡΟ') } : {}),
-        ...(pf('N_ΝΕΡΟ') !== null ? { N: pf('N_ΝΕΡΟ') } : {}),
-        ...(pf('P_ΝΕΡΟ') !== null ? { P: pf('P_ΝΕΡΟ') } : {}),
+        ...(pf('ΝΝΟ3 (mg/L)')     !== null ? { N:  pf('ΝΝΟ3 (mg/L)') }     : {}),
+        ...(pf('K (mg/L) νερό')   !== null ? { K:  pf('K (mg/L) νερό') }   : {}),
+        ...(pf('Mg (mg/L)')        !== null ? { Mg: pf('Mg (mg/L)') }        : {}),
+        ...(pf('Ca (mg/L)')        !== null ? { Ca: pf('Ca (mg/L)') }        : {}),
+        ...(pf('P (mg/L)')         !== null ? { P:  pf('P (mg/L)') }         : {}),
       }
     };
   });
