@@ -1760,7 +1760,7 @@ function mergeFromCSV(base, rows) {
     // Yield: column "ΕΚΤΙΜΗΣΗ ΠΑΡΑΓΩΓΗΣ" contains total tn (HA × tn/ha formula)
     const estTn = pf('ΕΚΤΙΜΗΣΗ ΠΑΡΑΓΩΓΗΣ');
     const yldRaw = (estTn !== null && ha) ? estTn / ha : null;
-    const yld = (yldRaw !== null && yldRaw > 0) ? yldRaw : null;
+    const yld = (yldRaw !== null && yldRaw > 0) ? yldRaw : p.yield; // keep hardcoded if CSV empty
 
     // Sand% — column "Αμμος" (col F in Excel), case-insensitive fallback
     const sandPct = pf('Αμμος') ?? pf('αμμος') ?? pf('ΑΜΜΟΣ') ?? pf('Ammos') ?? pf('Sand') ?? pf('SAND');
