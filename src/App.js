@@ -23,7 +23,7 @@ function computeNutrition(p) {
   const r3 = x => Math.round(x * 1000) / 1000;
   const age = plantYear ? new Date().getFullYear() - plantYear : null;
 
-  // N — yield-independent fixed constants (120 mature / 80 young <4yr)
+  // N — σταθερή βάση 120 kg/ha ώριμα / 80 kg/ha νεαρά, αφαίρεση νερού
   const fertN = Math.max((120 - (water.N || 0) * irrig / 1000) * ha, 0);
   const fertN_young = Math.max((80 - (water.N || 0) * irrig / 1000) * ha, 0);
 
@@ -31,7 +31,7 @@ function computeNutrition(p) {
 
   const { P: P_s, K: K_s, Mg: Mg_s, Ca: Ca_s } = soil;
 
-  // P, K, Mg, Ca — αφαίρεση νερού με ίδια λογική μοντέλου (irrig = ha × 4000)
+  // P, K, Mg, Ca — αφαίρεση νερού με irrig = ha × 4000
   let fertP = 0;
   if (P_s <= THR.P_high) fertP = Math.max((yld_ha * 10 / 37.5 - (water.P || 0) * irrig / 1000) * ha, 0);
 
@@ -41,7 +41,7 @@ function computeNutrition(p) {
   let fertMg_base = 0;
   if (Mg_s <= THR.Mg_high) fertMg_base = Math.max((yld_ha * 5 / 37.5 - (water.Mg || 0) * irrig / 1000) * ha, 0);
 
-  // Ca
+  // Ca — σταθερή 60 × ha αν κάτω από χαμηλό όριο (για δένδρα >= 2 ετών)
   let fertCa = 0;
   if (Ca_s <= THR.Ca_high) {
     if (Ca_s < THR.Ca_low) {
@@ -52,8 +52,8 @@ function computeNutrition(p) {
   }
 
   // Boost ×1.25 για έντονη έλλειψη (κάτω από χαμηλό όριο)
-  if (P_s !== null && P_s < THR.P_low)   fertP   *= 1.25;
-  if (K_s !== null && K_s < THR.K_low)   fertK_base *= 1.25;
+  if (P_s !== null && P_s < THR.P_low)    fertP      *= 1.25;
+  if (K_s !== null && K_s < THR.K_low)    fertK_base *= 1.25;
   if (Mg_s !== null && Mg_s < THR.Mg_low) fertMg_base *= 1.25;
 
   // Ανταγωνισμός / ισορροπία (competition multipliers)
@@ -1578,6 +1578,32 @@ function SoilBar({ label, value, low, high }) {
   );
 }
 
+function AuditRow({ label, hint, qty, storageKey }) {
+  const [applied, setApplied] = useState(() => { try { return JSON.parse(localStorage.getItem(storageKey+'_a')||'false'); } catch { return false; } });
+  const [date, setDate]       = useState(() => { try { return localStorage.getItem(storageKey+'_d')||''; } catch { return ''; } });
+  const [appQty, setAppQty]   = useState(() => { try { return localStorage.getItem(storageKey+'_q')||''; } catch { return ''; } });
+  useEffect(() => { try { localStorage.setItem(storageKey+'_a', JSON.stringify(applied)); } catch {} }, [applied, storageKey]);
+  useEffect(() => { try { localStorage.setItem(storageKey+'_d', date); } catch {} }, [date, storageKey]);
+  useEffect(() => { try { localStorage.setItem(storageKey+'_q', appQty); } catch {} }, [appQty, storageKey]);
+  const isZero = !qty || qty <= 0.005;
+  return (
+    <div style={{display:"grid",gridTemplateColumns:"2fr 1.1fr 0.5fr 1.4fr 1.1fr",gap:4,alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${C.creamDark}`}}>
+      <div>
+        <div style={{fontSize:11,fontWeight:700,color:C.text}}>{label}</div>
+        <div style={{fontSize:9,color:C.textMuted,lineHeight:1.3}}>{hint}</div>
+      </div>
+      <div style={{fontSize:13,fontWeight:800,color:isZero?C.textMuted:C.primary}}>{isZero?"—":qty.toFixed(2)+" kg"}</div>
+      <div style={{textAlign:"center"}}>
+        <input type="checkbox" checked={applied} onChange={e=>setApplied(e.target.checked)} style={{width:16,height:16,cursor:"pointer",accentColor:C.ok}}/>
+      </div>
+      <input type="date" value={date} onChange={e=>setDate(e.target.value)}
+        style={{fontSize:10,padding:"4px 5px",borderRadius:6,border:`1px solid ${C.creamDark}`,color:C.text,background:C.white,width:"100%"}}/>
+      <input type="number" value={appQty} onChange={e=>setAppQty(e.target.value)} placeholder="kg"
+        style={{fontSize:11,padding:"4px 6px",borderRadius:6,border:`1px solid ${C.creamDark}`,color:C.text,background:C.white,width:"100%"}}/>
+    </div>
+  );
+}
+
 function NRow({ element, value, period }) {
   const isZero=!value||value<=0.005;
   return (
@@ -1664,6 +1690,37 @@ function ProducerDetail({ p }) {
           <NRow element="Mg" value={nutrition?.Mg} period="2-3 εφαρμογές: 15 Ιουνίου → 1 Ιουλίου"/>
           <NRow element="P" value={nutrition?.P} period="1-2 εφαρμογές: έκπτυξη → ανθοφορία"/>
         </> : <div style={{color:`${C.gold}44`,fontSize:11,textAlign:"center",padding:"4px 0"}}>Δεν υπάρχει εκτίμηση παραγωγής (P/K/Mg/Ca)</div>}
+      </div>
+
+      {/* ───────── ΛΙΠΑΝΣΕΙΣ ───────── */}
+      <div style={{background:C.cream,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.creamDark}`}}>
+        <div style={{fontSize:10,fontWeight:700,color:C.primary,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}}>
+          🧪 Λιπάνσεις — Έλεγχος Εφαρμογής
+        </div>
+        <div style={{fontSize:9,color:C.textMuted,marginBottom:10}}>✅ Επισκέψεις γεωπόνου · Τσεκάρετε ό,τι εφαρμόστηκε</div>
+
+        {/* Table header */}
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1.1fr 0.5fr 1.6fr 1.1fr",gap:4,padding:"4px 0",borderBottom:`2px solid ${C.creamDark}`,marginBottom:4}}>
+          {["Στοιχείο","Ποσ. προτ. (kg)","Εφαρμ.","Ημερομηνία","Ποσ. εφαρμ. (kg)"].map(h=>(
+            <div key={h} style={{fontSize:8,fontWeight:700,color:C.textMuted,textTransform:"uppercase"}}>{h}</div>
+          ))}
+        </div>
+
+        <AuditRow label="P (Φώσφορος)" hint="1-2 εφαρμ. έκπτυξη → ανθοφορία"
+          qty={nutrition?.P ?? 0} storageKey={`${p.id||p.name}_P`}/>
+        <AuditRow label="K (Κάλιο)" hint="2-3 εβδ. από αρχές Ιουλίου"
+          qty={nutrition?.K ?? 0} storageKey={`${p.id||p.name}_K`}/>
+        <AuditRow label="Ca (Ασβέστιο)" hint="7-8 εβδ. μετά ανθοφορία → 50 ημ."
+          qty={nutrition?.Ca ?? 0} storageKey={`${p.id||p.name}_Ca`}/>
+        {N_display != null && <>
+          <AuditRow label="N βραδείας (40%)" hint="Κατά έκπτυξη πριν ανθοφορία"
+            qty={Math.round(N_display * 0.4 * 100) / 100} storageKey={`${p.id||p.name}_Nslow`}/>
+          <AuditRow label="N εβδομαδιαία (60%)" hint="Εβδομαδιαία ανθοφορία → τέλη Ιουνίου"
+            qty={Math.round(N_display * 0.6 * 100) / 100} storageKey={`${p.id||p.name}_Nweek`}/>
+        </>}
+        {nutrition?.Mg != null && nutrition.Mg > 0 &&
+          <AuditRow label="Mg (Μαγνήσιο)" hint="2-3 εφαρμ. 15 Ιουνίου → 1 Ιουλίου"
+            qty={nutrition.Mg} storageKey={`${p.id||p.name}_Mg`}/>}
       </div>
     </div>
   );
