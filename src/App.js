@@ -1730,11 +1730,20 @@ const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSPDIpJvd9IsF0h
 
 function parseCSV(text) {
   const lines = text.trim().split('\n');
-  const hdr = lines[0].split(',').map(h => h.trim());
+  const rawHdr = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
   return lines.slice(1).map(line => {
-    const vals = line.split(',');
+    // handle quoted fields (commas inside quotes)
+    const vals = [];
+    let cur = '', inQ = false;
+    for (const ch of line + ',') {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { vals.push(cur.trim().replace(/^"|"$/g, '')); cur = ''; }
+      else cur += ch;
+    }
     const row = {};
-    hdr.forEach((h, i) => { row[h] = (vals[i] || '').trim(); });
+    rawHdr.forEach((h, i) => { row[h] = vals[i] ?? ''; });
+    // also index by lowercase for case-insensitive lookup
+    rawHdr.forEach((h, i) => { row[h.toLowerCase()] = vals[i] ?? ''; });
     return row;
   });
 }
@@ -1753,8 +1762,8 @@ function mergeFromCSV(base, rows) {
     const yldRaw = (estTn !== null && ha) ? estTn / ha : null;
     const yld = (yldRaw !== null && yldRaw > 0) ? yldRaw : null;
 
-    // Sand% — column "Αμμος" (col F in Excel)
-    const sandPct = pf('Αμμος');
+    // Sand% — column "Αμμος" (col F in Excel), case-insensitive fallback
+    const sandPct = pf('Αμμος') ?? pf('αμμος') ?? pf('ΑΜΜΟΣ') ?? pf('Ammos') ?? pf('Sand') ?? pf('SAND');
     const texture = sandPct !== null
       ? (sandPct >= 60 ? 'sandy' : sandPct < 30 ? 'clay' : 'medium')
       : p.texture;
@@ -1770,7 +1779,7 @@ function mergeFromCSV(base, rows) {
         ...(pf('K')           !== null ? { K:  pf('K') }           : {}),
         ...(pf('Mg')          !== null ? { Mg: pf('Mg') }          : {}),
         ...(pf('Ca')          !== null ? { Ca: pf('Ca') }          : {}),
-        ...(pf('Οργ Ουσ.')    !== null ? { OM: pf('Οργ Ουσ.') }   : {}),
+        ...(() => { const v = pf('Οργ Ουσ.') ?? pf('οργ ουσ.'); return v !== null ? { OM: v } : {}; })(),
       },
       water: { ...p.water,
         ...(pf('ΝΝΟ3 (mg/L)')     !== null ? { N:  pf('ΝΝΟ3 (mg/L)') }     : {}),
