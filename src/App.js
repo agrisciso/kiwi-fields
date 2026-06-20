@@ -1624,7 +1624,7 @@ function NRow({ element, value, period }) {
 function ProducerDetail({ p }) {
   const thr = THRX[p.texture] || THRX.medium;
   const texName=p.texture==="sandy"?"Αμμώδες":p.texture==="clay"?"Αργιλώδες":"Μέσης Σύστασης";
-  const texLabel=p.sandPct!=null?`${texName} · ${p.sandPct}% άμμος`:texName;
+
   const age = p.plantYear ? new Date().getFullYear() - p.plantYear : p.age;
   const isYoung = age !== null && age < 3;
   const nutrition = computeNutrition(p);
