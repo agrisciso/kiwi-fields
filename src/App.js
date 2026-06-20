@@ -1862,7 +1862,7 @@ export default function FieldApp() {
                   {!filtered.length&&<div style={{padding:"20px",textAlign:"center",color:C.textMuted,fontSize:13}}>Δεν βρέθηκαν</div>}
                 </div>
                 <div style={{padding:"8px 10px",borderTop:`1px solid ${C.creamDark}`,display:"flex",gap:8}}>
-                  <button onClick={()=>{setSelected([]);setShowDropdown(false);setSearch("");}}
+                  <button onClick={()=>{setSelectedIds([]);setShowDropdown(false);setSearch("");}}
                     style={{flex:1,padding:"7px",borderRadius:7,border:`1px solid ${C.creamDark}`,background:C.white,fontSize:12,cursor:"pointer",color:C.textMuted}}>Καθαρισμός</button>
                   <button onClick={()=>setShowDropdown(false)}
                     style={{flex:1,padding:"7px",borderRadius:7,border:"none",background:C.primary,fontSize:12,cursor:"pointer",color:C.gold,fontWeight:700}}>Εφαρμογή ({selected.length})</button>
