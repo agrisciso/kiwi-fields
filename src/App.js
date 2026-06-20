@@ -46,10 +46,15 @@ function computeNutrition(p) {
     }
   }
 
-  // Competition multipliers
+  // Boost ×1.25 για έντονη έλλειψη (κάτω από χαμηλό όριο)
+  if (P_s !== null && P_s < THR.P_low)   fertP   *= 1.25;
+  if (K_s !== null && K_s < THR.K_low)   fertK_base *= 1.25;
+  if (Mg_s !== null && Mg_s < THR.Mg_low) fertMg_base *= 1.25;
+
+  // Ανταγωνισμός / ισορροπία (competition multipliers)
   let fertK = fertK_base * (Mg_s > THR.Mg_high ? 1.25 : 1);
   let fertMg = fertMg_base * (K_s > THR.K_high ? 1.25 : 1);
-  if (Ca_s > THR.Ca_high) { fertK *= 1.25; fertMg *= 1.25; }
+  if (Ca_s > THR.Ca_high) { fertK *= 1.25; fertMg *= 1.25; fertP *= 1.25; }
 
   return { N: r3(fertN), N_young: r3(fertN_young), P: r3(fertP), K: r3(fertK), Ca: r3(fertCa), Mg: r3(fertMg) };
 }
@@ -1586,7 +1591,8 @@ function NRow({ element, value, period }) {
 }
 
 function ProducerDetail({ p }) {
-  const texLabel=p.texture==="sandy"?"Αμμώδες":p.texture==="clay"?"Αργιλώδες":"Μέσης Σύστασης";
+  const texName=p.texture==="sandy"?"Αμμώδες":p.texture==="clay"?"Αργιλώδες":"Μέσης Σύστασης";
+  const texLabel=p.sandPct!=null?`${texName} (${p.sandPct}% άμμος)`:texName;
   const age = p.plantYear ? new Date().getFullYear() - p.plantYear : p.age;
   const isYoung = age !== null && age < 3;
   const nutrition = computeNutrition(p);
@@ -1678,8 +1684,14 @@ function mergeFromCSV(base, rows) {
     const yldRaw = (estTn !== '' && ha) ? parseFloat(estTn) / ha : null;
     const yld = (yldRaw !== null && !isNaN(yldRaw) && yldRaw > 0) ? yldRaw : null;
     const pf = k => { const v = parseFloat(row[k]); return isNaN(v) ? null : v; };
+    // Τύπος εδάφους από ποσοστό άμμου (δοκιμάζει πολλά ονόματα στήλης)
+    const sandPct = pf('ΑΜΜΟΣ') ?? pf('ΑΜΜΟΣ_%') ?? pf('SAND_PCT') ?? pf('SAND') ?? pf('%ΑΜΜΟΣ');
+    const texture = sandPct !== null
+      ? (sandPct >= 60 ? 'sandy' : sandPct < 30 ? 'clay' : 'medium')
+      : p.texture;
     return {
-      ...p, ha, yield: yld,
+      ...p, ha, yield: yld, texture,
+      sandPct: sandPct !== null ? sandPct : (p.sandPct ?? null),
       plantYear: parseInt(row['ΕΤΟΣ_ΦΥΤΕΥΣΗΣ']) || p.plantYear,
       area: row['ΠΕΡΙΟΧΗ'] || p.area,
       soil: { ...p.soil,
