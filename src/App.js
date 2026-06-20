@@ -26,23 +26,23 @@ function computeNutrition(p) {
 
   const { P: P_s, K: K_s, Mg: Mg_s, Ca: Ca_s } = soil;
 
-  // P, K, Mg, Ca — water NOT subtracted (matches artagold Excel model)
+  // P, K, Mg, Ca — αφαίρεση νερού με ίδια λογική μοντέλου (irrig = ha × 4000)
   let fertP = 0;
-  if (P_s <= THR.P_high) fertP = Math.max(yld_ha * 10 / 37.5 * ha, 0);
+  if (P_s <= THR.P_high) fertP = Math.max((yld_ha * 10 / 37.5 - (water.P || 0) * irrig / 1000) * ha, 0);
 
   let fertK_base = 0;
-  if (K_s <= THR.K_high) fertK_base = Math.max(yld_ha * 74 / 37.5 * ha, 0);
+  if (K_s <= THR.K_high) fertK_base = Math.max((yld_ha * 74 / 37.5 - (water.K || 0) * irrig / 1000) * ha, 0);
 
   let fertMg_base = 0;
-  if (Mg_s <= THR.Mg_high) fertMg_base = Math.max(yld_ha * 5 / 37.5 * ha, 0);
+  if (Mg_s <= THR.Mg_high) fertMg_base = Math.max((yld_ha * 5 / 37.5 - (water.Mg || 0) * irrig / 1000) * ha, 0);
 
   // Ca
   let fertCa = 0;
   if (Ca_s <= THR.Ca_high) {
     if (Ca_s < THR.Ca_low) {
-      fertCa = (age !== null && age >= 2) ? 60 * ha : Math.max(yld_ha * 11 / 37.5 * ha, 0);
+      fertCa = (age !== null && age >= 2) ? 60 * ha : Math.max((yld_ha * 11 / 37.5 - (water.Ca || 0) * irrig / 1000) * ha, 0);
     } else {
-      fertCa = Math.max(yld_ha * 11 / 37.5 * ha, 0);
+      fertCa = Math.max((yld_ha * 11 / 37.5 - (water.Ca || 0) * irrig / 1000) * ha, 0);
     }
   }
 
