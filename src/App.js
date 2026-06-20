@@ -8,12 +8,17 @@ const C = {
   ok: "#27AE60", warn: "#E67E22", red: "#C0392B",
 };
 
-// Thresholds: clay/heavy soil (conservative)
-const THR = { P_low:11, P_high:21, K_low:150, K_high:300, Ca_low:3000, Ca_high:6000, Mg_low:150, Mg_high:300 };
+// Όρια ανά τύπο εδάφους (από πίνακα αναφοράς)
+const THRX = {
+  sandy:  { P_low:7,  P_high:11, K_low:70,  K_high:120, Ca_low:800,  Ca_high:1500, Mg_low:70,  Mg_high:120, OM_low:0.8, OM_high:1.5 },
+  medium: { P_low:9,  P_high:17, K_low:100, K_high:200, Ca_low:1500, Ca_high:3500, Mg_low:100, Mg_high:180, OM_low:1.5, OM_high:2.0 },
+  clay:   { P_low:11, P_high:21, K_low:150, K_high:300, Ca_low:3000, Ca_high:6000, Mg_low:150, Mg_high:300, OM_low:2.0, OM_high:2.5 },
+};
 
 function computeNutrition(p) {
-  const { ha, yield: yld_ha, soil, water, plantYear } = p;
+  const { ha, yield: yld_ha, soil, water, plantYear, texture } = p;
   if (!ha) return null;
+  const THR = THRX[texture] || THRX.medium;  // όρια ανάλογα τύπου εδάφους
   const irrig = ha * 4000;
   const r3 = x => Math.round(x * 1000) / 1000;
   const age = plantYear ? new Date().getFullYear() - plantYear : null;
@@ -1591,13 +1596,15 @@ function NRow({ element, value, period }) {
 }
 
 function ProducerDetail({ p }) {
+  const thr = THRX[p.texture] || THRX.medium;
   const texName=p.texture==="sandy"?"Αμμώδες":p.texture==="clay"?"Αργιλώδες":"Μέσης Σύστασης";
-  const texLabel=p.sandPct!=null?`${texName} (${p.sandPct}% άμμος)`:texName;
+  const texLabel=p.sandPct!=null?`${texName} · ${p.sandPct}% άμμος`:texName;
   const age = p.plantYear ? new Date().getFullYear() - p.plantYear : p.age;
   const isYoung = age !== null && age < 3;
   const nutrition = computeNutrition(p);
   const N_display = isYoung ? nutrition?.N_young : nutrition?.N;
   const hasYield = !!p.yield;
+  const omOk = p.soil.OM != null && p.soil.OM >= thr.OM_low;
 
   return (
     <div>
@@ -1608,7 +1615,7 @@ function ProducerDetail({ p }) {
           {isYoung&&<span style={{color:"#FFB347",marginLeft:6}}>⚠ Νεαρό</span>}
         </div>
         <div style={{display:"flex",gap:8,marginTop:10}}>
-          {[{l:"Εκτάρια",v:`${fmt(p.ha)} ha`},{l:"Παραγωγή",v:p.yield?`${fmt(p.yield)} tn/ha`:"—"},{l:"Έδαφος",v:texLabel}].map(({l,v})=>(
+          {[{l:"Εκτάρια",v:`${fmt(p.ha)} ha`},{l:"Παραγωγή",v:p.yield?`${fmt(p.yield)} tn/ha`:"—"},{l:"Τύπος Εδάφους",v:texName},{l:"Άμμος %",v:p.sandPct!=null?`${p.sandPct}%`:"—"}].map(({l,v})=>(
             <div key={l} style={{flex:1,background:`${C.gold}18`,borderRadius:8,padding:"7px 8px",textAlign:"center"}}>
               <div style={{fontSize:9,color:`${C.gold}77`}}>{l}</div>
               <div style={{fontSize:12,fontWeight:800,color:C.gold}}>{v}</div>
@@ -1620,17 +1627,17 @@ function ProducerDetail({ p }) {
       <div style={{background:C.cream,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.creamDark}`}}>
         <div style={{fontSize:10,fontWeight:700,color:C.gold,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:10}}>🪨 Ανάλυση Εδάφους (0-30cm)</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-          {[{l:"pH",v:p.soil.pH,c:p.soil.pH>7.5?C.warn:C.ok},{l:"Οργ. Ουσία %",v:p.soil.OM,c:p.soil.OM&&p.soil.OM>2?C.ok:C.warn}].map(({l,v,c})=>(
+          {[{l:"pH",v:p.soil.pH,c:p.soil.pH>7.5?C.warn:C.ok},{l:`Οργ. Ουσία % (>${thr.OM_low})`,v:p.soil.OM,c:omOk?C.ok:C.warn}].map(({l,v,c})=>(
             <div key={l} style={{background:C.white,borderRadius:8,padding:"8px 10px",border:`1px solid ${C.creamDark}`}}>
               <div style={{fontSize:9,color:C.textMuted,marginBottom:2}}>{l}</div>
               <div style={{fontSize:18,fontWeight:800,color:c||C.text}}>{fmt(v)}</div>
             </div>
           ))}
         </div>
-        <SoilBar label="P" value={p.soil.P} low={THR.P_low} high={THR.P_high}/>
-        <SoilBar label="K" value={p.soil.K} low={THR.K_low} high={THR.K_high}/>
-        <SoilBar label="Mg" value={p.soil.Mg} low={THR.Mg_low} high={THR.Mg_high}/>
-        <SoilBar label="Ca" value={p.soil.Ca} low={THR.Ca_low} high={THR.Ca_high}/>
+        <SoilBar label="P" value={p.soil.P} low={thr.P_low} high={thr.P_high}/>
+        <SoilBar label="K" value={p.soil.K} low={thr.K_low} high={thr.K_high}/>
+        <SoilBar label="Mg" value={p.soil.Mg} low={thr.Mg_low} high={thr.Mg_high}/>
+        <SoilBar label="Ca" value={p.soil.Ca} low={thr.Ca_low} high={thr.Ca_high}/>
       </div>
 
       <div style={{background:C.cream,borderRadius:14,padding:"12px 14px",marginBottom:10,border:`1px solid ${C.creamDark}`}}>
