@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 
 const C = {
   primary: "#0D2818", mid: "#1A3A2A", accent: "#2D5A3D",
