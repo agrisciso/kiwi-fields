@@ -16,7 +16,7 @@ const THRX = {
 };
 
 function computeNutrition(p) {
-  const { ha, yield: yld_ha, soil, water, plantYear, texture } = p;
+  const { ha, yield: yld_ha, soil, water, texture } = p;
   if (!ha) return null;
   const THR = THRX[texture] || THRX.medium;
   const irrig = ha * 4000;
@@ -451,32 +451,6 @@ function SoilBar({ label, value, low, high }) {
         <div style={{ width: `${Math.min(100, (value / (high * 1.5)) * 100)}%`, height: "100%", background: color, borderRadius: 3 }} />
       </div>
       <div style={{ width: 70, fontSize: 11, textAlign: "right", fontWeight: 600, color }}>{fmt(value)} <span style={{ fontSize: 9 }}>{hint}</span></div>
-    </div>
-  );
-}
-
-function AuditRow({ label, hint, qty, storageKey }) {
-  const [applied, setApplied] = useState(() => { try { return JSON.parse(localStorage.getItem(storageKey + '_a') || 'false'); } catch { return false; } });
-  const [date, setDate]       = useState(() => { try { return localStorage.getItem(storageKey + '_d') || ''; } catch { return ''; } });
-  const [appQty, setAppQty]   = useState(() => { try { return localStorage.getItem(storageKey + '_q') || ''; } catch { return ''; } });
-  useEffect(() => { try { localStorage.setItem(storageKey + '_a', JSON.stringify(applied)); } catch {} }, [applied, storageKey]);
-  useEffect(() => { try { localStorage.setItem(storageKey + '_d', date); } catch {} }, [date, storageKey]);
-  useEffect(() => { try { localStorage.setItem(storageKey + '_q', appQty); } catch {} }, [appQty, storageKey]);
-  const isZero = !qty || qty <= 0.005;
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "2fr 1.1fr 0.5fr 1.4fr 1.1fr", gap: 4, alignItems: "center", padding: "7px 0", borderBottom: `1px solid ${C.creamDark}` }}>
-      <div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.text }}>{label}</div>
-        <div style={{ fontSize: 9, color: C.textMuted, lineHeight: 1.3 }}>{hint}</div>
-      </div>
-      <div style={{ fontSize: 13, fontWeight: 800, color: isZero ? C.textMuted : C.primary }}>{isZero ? "—" : qty.toFixed(2) + " kg"}</div>
-      <div style={{ textAlign: "center" }}>
-        <input type="checkbox" checked={applied} onChange={e => setApplied(e.target.checked)} style={{ width: 16, height: 16, cursor: "pointer", accentColor: C.ok }} />
-      </div>
-      <input type="date" value={date} onChange={e => setDate(e.target.value)}
-        style={{ fontSize: 10, padding: "4px 5px", borderRadius: 6, border: `1px solid ${C.creamDark}`, color: C.text, background: C.white, width: "100%" }} />
-      <input type="number" value={appQty} onChange={e => setAppQty(e.target.value)} placeholder="kg"
-        style={{ fontSize: 11, padding: "4px 6px", borderRadius: 6, border: `1px solid ${C.creamDark}`, color: C.text, background: C.white, width: "100%" }} />
     </div>
   );
 }
