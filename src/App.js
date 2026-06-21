@@ -65,6 +65,11 @@ function computeNutrition(p) {
     if (Mg_s < THR.Mg_low) fertMg *= 1.25;
   }
 
+  // Cross-element interactions (same as kiwi-nutrition / artagold)
+  if (Mg_s > THR.Mg_high) fertK  *= 1.25;
+  if (K_s  > THR.K_high)  fertMg *= 1.25;
+  if (Ca_s > THR.Ca_high) { fertK *= 1.25; fertMg *= 1.25; fertP *= 1.25; }
+
   return { N: r3(fertN), N_young: r3(fertN_young), P: r3(fertP), K: r3(fertK), Ca: r3(fertCa), Mg: r3(fertMg) };
 }
 
