@@ -44,11 +44,15 @@ function computeNutrition(p) {
   else if (P_s < THR.P_low)  fertP = yld_ha * 10 / 37.5;
   else                        fertP = Math.max((yld_ha * 10 / 37.5 - wP * irrig / 1000) * ha, 0);
 
-  // Ca — texture thresholds; < Ca_low → per-ha rate only; > Ca_high → 0
+  // Ca — σταθερή 60 kg/ha αν soil Ca < Ca_low (>=2 ετών), yield-based αλλιώς
+  const pAge = p.plantYear ? new Date().getFullYear() - p.plantYear : null;
+  const isYoungCa = pAge !== null && pAge < 2;
   let fertCa;
-  if (Ca_s > THR.Ca_high)      fertCa = 0;
-  else if (Ca_s < THR.Ca_low)  fertCa = yld_ha * 11 / 37.5;
-  else                          fertCa = Math.max((yld_ha * 11 / 37.5 - wCa * irrig / 1000) * ha, 0);
+  if (Ca_s > THR.Ca_high)     fertCa = 0;
+  else if (Ca_s < THR.Ca_low) fertCa = isYoungCa
+    ? Math.max((yld_ha * 11 / 37.5 - wCa * irrig / 1000) * ha, 0)
+    : 60 * ha;
+  else                         fertCa = Math.max((yld_ha * 11 / 37.5 - wCa * irrig / 1000) * ha, 0);
 
   // Mg — texture thresholds; < Mg_low → per-ha rate only; > Mg_high → 0
   let fertMg;
