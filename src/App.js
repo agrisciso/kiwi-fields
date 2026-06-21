@@ -502,7 +502,7 @@ function ProducerDetail({ p }) {
   const thr = THRX[p.texture] || THRX.medium;
   const texName = p.texture === "sandy" ? "Αμμώδες" : p.texture === "clay" ? "Αργιλώδες" : "Μέσης Σύστασης";
   const age = p.plantYear ? new Date().getFullYear() - p.plantYear : null;
-  const isYoung = age !== null && age < 3;
+  const isYoung = age !== null && age < 2;
   const nutrition = computeNutrition(p);
   const N_display = isYoung ? nutrition?.N_young : nutrition?.N;
   const hasYield = !!p.yield;
@@ -569,7 +569,7 @@ function ProducerDetail({ p }) {
       <div style={{ background: C.primary, borderRadius: 14, padding: "12px 14px", marginBottom: 10 }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: C.gold, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
           📋 Πρόγραμμα Θρέψης (kg/χωράφι)
-          {isYoung && <span style={{ marginLeft: 8, fontSize: 9, background: "rgba(255,179,71,0.2)", color: "#FFB347", padding: "2px 6px", borderRadius: 6 }}>Δόση νεαρού &lt;3 ετών</span>}
+          {isYoung && <span style={{ marginLeft: 8, fontSize: 9, background: "rgba(255,179,71,0.2)", color: "#FFB347", padding: "2px 6px", borderRadius: 6 }}>Δόση νεαρού &lt;2 ετών</span>}
         </div>
         <NRow element="N" value={N_display} period={isYoung ? "Βάση 80 kg N/ha για νεαρά δένδρα" : "Στάνταρντ 120 kg N/ha · 40% βραδείας έκπτυξη · εβδ. ανθοφορία → Ιούνιο"} />
         {hasYield ? <>
@@ -580,28 +580,6 @@ function ProducerDetail({ p }) {
         </> : <div style={{ color: `${C.gold}44`, fontSize: 11, textAlign: "center", padding: "4px 0" }}>Δεν υπάρχει εκτίμηση παραγωγής (P/K/Mg/Ca)</div>}
       </div>
 
-      {/* ΛΙΠΑΝΣΕΙΣ */}
-      <div style={{ background: C.cream, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: `1px solid ${C.creamDark}` }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: C.primary, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
-          🧪 Λιπάνσεις — Έλεγχος Εφαρμογής
-        </div>
-        <div style={{ fontSize: 9, color: C.textMuted, marginBottom: 10 }}>✅ Επισκέψεις γεωπόνου · Τσεκάρετε ό,τι εφαρμόστηκε</div>
-        {/* Header row */}
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1.1fr 0.5fr 1.4fr 1.1fr", gap: 4, padding: "4px 0", borderBottom: `2px solid ${C.creamDark}`, marginBottom: 4 }}>
-          {["Στοιχείο", "Ποσ. προτ. (kg)", "Εφαρμ.", "Ημερομηνία", "Ποσ. εφαρμ. (kg)"].map(h => (
-            <div key={h} style={{ fontSize: 8, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>{h}</div>
-          ))}
-        </div>
-        <AuditRow label="P (Φώσφορος)"       hint="1-2 εφαρμ. έκπτυξη → ανθοφορία"        qty={nutrition?.P  ?? 0} storageKey={`${p.id}_P`}  />
-        <AuditRow label="K (Κάλιο)"           hint="2-3 εβδ. από αρχές Ιουλίου"             qty={nutrition?.K  ?? 0} storageKey={`${p.id}_K`}  />
-        <AuditRow label="Ca (Ασβέστιο)"       hint="7-8 εβδ. μετά ανθοφορία → 50 ημ."      qty={nutrition?.Ca ?? 0} storageKey={`${p.id}_Ca`} />
-        {N_display != null && <>
-          <AuditRow label="N βραδείας (40%)"    hint="Κατά έκπτυξη πριν ανθοφορία"            qty={Math.round(N_display * 0.4 * 100) / 100} storageKey={`${p.id}_Nslow`} />
-          <AuditRow label="N εβδομαδιαία (60%)" hint="Εβδομαδιαία ανθοφορία → τέλη Ιουνίου" qty={Math.round(N_display * 0.6 * 100) / 100} storageKey={`${p.id}_Nweek`} />
-        </>}
-        {nutrition?.Mg != null && nutrition.Mg > 0 &&
-          <AuditRow label="Mg (Μαγνήσιο)" hint="2-3 εφαρμ. 15 Ιουνίου → 1 Ιουλίου" qty={nutrition.Mg} storageKey={`${p.id}_Mg`} />}
-      </div>
     </div>
   );
 }
@@ -661,7 +639,7 @@ export default function FieldApp() {
                         {ap.map(p => {
                           const n = computeNutrition(p);
                           const age = p.plantYear ? new Date().getFullYear() - p.plantYear : null;
-                          const isYoung = age !== null && age < 3;
+                          const isYoung = age !== null && age < 2;
                           const N_disp = isYoung ? n?.N_young : n?.N;
                           return (
                             <div key={p.id} onClick={() => toggleSelect(p)}
