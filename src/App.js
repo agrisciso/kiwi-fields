@@ -31,18 +31,21 @@ function computeNutrition(p) {
   const { P: P_s, K: K_s, Mg: Mg_s, Ca: Ca_s } = soil;
   const wP = water.P || 0, wK = water.K || 0, wCa = water.Ca || 0, wMg = water.Mg || 0;
 
-  // K — hardcoded 200/300 thresholds (Excel formula)
-  // < 200 → per-ha rate only (no ha mult, no water); > 300 → 0
+  // K
   let fertK;
-  if (K_s > 300)       fertK = 0;
-  else if (K_s < 200)  fertK = yld_ha * 74 / 37.5;
-  else                 fertK = Math.max((yld_ha * 74 / 37.5 - wK * irrig / 1000) * ha, 0);
+  if (K_s > THR.K_high)     fertK = 0;
+  else {
+    fertK = Math.max((yld_ha * 74 / 37.5 - wK * irrig / 1000) * ha, 0);
+    if (K_s < THR.K_low) fertK *= 1.25;
+  }
 
-  // P — texture thresholds; < P_low → per-ha rate only; > P_high → 0
+  // P
   let fertP;
-  if (P_s > THR.P_high)      fertP = 0;
-  else if (P_s < THR.P_low)  fertP = yld_ha * 10 / 37.5;
-  else                        fertP = Math.max((yld_ha * 10 / 37.5 - wP * irrig / 1000) * ha, 0);
+  if (P_s > THR.P_high)     fertP = 0;
+  else {
+    fertP = Math.max((yld_ha * 10 / 37.5 - wP * irrig / 1000) * ha, 0);
+    if (P_s < THR.P_low) fertP *= 1.25;
+  }
 
   // Ca — σταθερή 60 kg/ha αν soil Ca < Ca_low (>=2 ετών), yield-based αλλιώς
   const pAge = p.plantYear ? new Date().getFullYear() - p.plantYear : null;
@@ -54,11 +57,13 @@ function computeNutrition(p) {
     : 60 * ha;
   else                         fertCa = Math.max((yld_ha * 11 / 37.5 - wCa * irrig / 1000) * ha, 0);
 
-  // Mg — texture thresholds; < Mg_low → per-ha rate only; > Mg_high → 0
+  // Mg
   let fertMg;
-  if (Mg_s > THR.Mg_high)      fertMg = 0;
-  else if (Mg_s < THR.Mg_low)  fertMg = yld_ha * 5 / 37.5;
-  else                          fertMg = Math.max((yld_ha * 5 / 37.5 - wMg * irrig / 1000) * ha, 0);
+  if (Mg_s > THR.Mg_high)     fertMg = 0;
+  else {
+    fertMg = Math.max((yld_ha * 5 / 37.5 - wMg * irrig / 1000) * ha, 0);
+    if (Mg_s < THR.Mg_low) fertMg *= 1.25;
+  }
 
   return { N: r3(fertN), N_young: r3(fertN_young), P: r3(fertP), K: r3(fertK), Ca: r3(fertCa), Mg: r3(fertMg) };
 }
